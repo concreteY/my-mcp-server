@@ -2,8 +2,16 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod"; // 데이터 검증용 (SDK에 포함됨)
+import cors from "cors"; // cors module import 
+
 
 const app = express();
+
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id'],
+}));
 
 // MCP 서버 인스턴스 생성
 const server = new McpServer({
@@ -32,6 +40,7 @@ app.get("/sse", async (req, res) => {
   await server.connect(transport);
 });
 
+
 // 메시지 수신 엔드포인트: 클라이언트가 명령을 보내는 곳
 app.post("/messages", express.json(), async (req, res) => {
   if (transport) {
@@ -40,6 +49,9 @@ app.post("/messages", express.json(), async (req, res) => {
     res.status(400).send("No active connection");
   }
 });
+
+// 이 라인이 Express 앱의 모든 라우트(GET, POST 등)를 처리하는 가장 마지막 부분
+app.use("/", server.router);
 
 // 서버 시작
 const PORT = process.env.PORT || 3000;
