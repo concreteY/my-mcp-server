@@ -51,7 +51,7 @@ app.post("/messages", express.json(), async (req, res) => {
 });
 
 // 이 라인이 Express 앱의 모든 라우트(GET, POST 등)를 처리하는 가장 마지막 부분
-app.use("/", server);
+app.use(server.router);
 
 // 서버 시작
 const PORT = process.env.PORT || 3000;
