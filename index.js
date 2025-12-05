@@ -31,22 +31,41 @@ server.tool(
 );
 
 // SSE 연결을 저장할 변수 (간단한 구현을 위함)
-let transport;
+//let transport;
+const transports = new Map(); 
 
 // SSE 엔드포인트: 클라이언트(Claude 등)가 처음 연결하는 곳
 app.get("/sse", async (req, res) => {
   console.log("New SSE connection established");
-  transport = new SSEServerTransport("/messages", res);
+  const transport = new SSEServerTransport("/messages", res);
+
+// transport 객체에는 고유한 sessionId가 생성되어 있습니다.
+  console.log("Session created:", transport.sessionId);
+  transports.set(transport.sessionId, transport);
+
   await server.connect(transport);
+
+// [변경점 3] 연결이 끊어지면 Map에서 제거 (메모리 누수 방지)
+  res.on("close", () => {
+    console.log("Connection closed for session:", transport.sessionId);
+    transports.delete(transport.sessionId);
 });
 
 
 // 메시지 수신 엔드포인트: 클라이언트가 명령을 보내는 곳
 app.post("/messages", express.json(), async (req, res) => {
+// [변경점 4] URL의 쿼리 파라미터에서 sessionId를 가져옴
+  const sessionId = req.query.sessionId;
+  
+  // 해당 세션 ID에 맞는 transport를 Map에서 찾음
+  const transport = transports.get(sessionId);
+
   if (transport) {
     await transport.handlePostMessage(req, res);
   } else {
-    res.status(400).send("No active connection");
+    // 세션을 찾지 못하면 에러 반환
+    console.error("Session not found:", sessionId);
+    res.status(404).send("Session not found");
   }
 });
 
